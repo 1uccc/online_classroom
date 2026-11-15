@@ -1,0 +1,20 @@
+import { Router } from 'express';
+import { authenticate } from '../middlewares/authenticate.js';
+import { authorizeRoles } from '../middlewares/authorizeRoles.js';
+import { validate, validateIds } from '../middlewares/validateRequest.js';
+import { materialUpload } from '../middlewares/upload.js';
+import { ownCourse } from '../services/accessService.js';
+import * as schemas from '../validators/schemas.js';
+import * as controller from '../controllers/materialController.js';
+
+const router = Router({ mergeParams: true });
+const teacher = authorizeRoles('teacher');
+const owner = async (req, res, next) => { await ownCourse(req.user, req.params.courseId); next(); };
+router.use(authenticate, validateIds);
+router.get('/', validate(schemas.pageQuery, 'query'), controller.getMaterials);
+router.get('/:materialId', validateIds, controller.getMaterial);
+router.get('/:materialId/download', validateIds, controller.downloadMaterial);
+router.post('/', teacher, owner, materialUpload, validate(schemas.material), controller.createMaterial);
+router.patch('/:materialId', validateIds, teacher, owner, materialUpload, validate(schemas.materialUpdate), controller.updateMaterial);
+router.delete('/:materialId', validateIds, teacher, controller.deleteMaterial);
+export default router;
