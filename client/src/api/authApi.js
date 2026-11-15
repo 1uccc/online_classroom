@@ -4,4 +4,5 @@ export const authApi = {
   register: body => request('/auth/register', { method: 'POST', body }),
   me: signal => request('/auth/me', { signal }),
   updateProfile: body => request('/auth/me', { method: 'PATCH', body }),
+  changePassword: body => request('/auth/me/password', { method: 'PATCH', body }),
 };

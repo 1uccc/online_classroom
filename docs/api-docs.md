@@ -14,12 +14,15 @@ Các API được bảo vệ nhận `Authorization: Bearer <access_token>`. Mỗ
 | POST | `/auth/login` | Public | Lấy JWT và thông tin tài khoản |
 | GET | `/auth/me` | Đã đăng nhập | Xem hồ sơ |
 | PATCH | `/auth/me` | Đã đăng nhập | Sửa fullName |
+| PATCH | `/auth/me/password` | Admin | Đổi mật khẩu của mình, có xác nhận mật khẩu hiện tại |
 
 Register: `{ "fullName": "Nguyễn Văn An", "email": "an@example.com", "password": "MatKhauMinhHoa123!" }`.
 
 Login: `{ "email": "an@example.com", "password": "MatKhauMinhHoa123!" }`.
 
 Login trả `data.accessToken`, `data.tokenType` và `data.user`. Mật khẩu tối thiểu 12 ký tự và không quá 72 byte UTF-8. Không nhận role trong đăng ký công khai.
+
+Admin tự đổi mật khẩu: `{ "currentPassword": "<mật khẩu hiện tại>", "newPassword": "<mật khẩu mới>" }`. Mật khẩu mới phải khác mật khẩu cũ. Response có `data.accessToken`, `data.tokenType`, `data.user`; frontend thay token để giữ phiên hiện tại. Mọi token đã cấp trước khi đổi sẽ bị từ chối, kể cả token không có trường phiên bản từ các bản backend cũ. Sai mật khẩu hiện tại trả 400, không làm mất phiên đăng nhập.
 
 ### Users
 
@@ -29,8 +32,11 @@ Login trả `data.accessToken`, `data.tokenType` và `data.user`. Mật khẩu t
 | POST | `/users` | Admin | Tạo Teacher/Student |
 | GET | `/users/:userId` | Admin | Xem người dùng |
 | PATCH | `/users/:userId/status` | Admin | Khóa/mở khóa |
+| PATCH | `/users/:userId/password` | Admin | Đặt lại mật khẩu Sinh viên/Giảng viên |
 
 Tạo người dùng dùng payload Register thêm `role: "teacher"` hoặc `"student"`. Khóa: `{ "isActive": false }`. Không cho tự khóa tài khoản. Admin đầu tiên được tạo bằng `npm run seed:admin`.
+
+Đặt lại mật khẩu: `{ "newPassword": "<mật khẩu mới>" }`. Chỉ chấp nhận tài khoản role student/teacher; không cho dùng route này để đổi mật khẩu của mình hoặc Admin khác. Tất cả phiên cũ của người được đặt lại mật khẩu sẽ hết hiệu lực; người đó đăng nhập bằng mật khẩu mới. Không thay role, trạng thái khóa, hoặc dữ liệu học tập. Response chỉ trả thông tin người dùng, không trả mật khẩu, hash hay token của người đó. Hai API mật khẩu dùng chung giới hạn 20 request/15 phút cho mỗi Admin.
 
 ### Categories
 

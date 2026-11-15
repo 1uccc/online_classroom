@@ -33,6 +33,13 @@ npm run seed:admin
 
 Mật khẩu tối thiểu 12 ký tự, tối đa 72 byte UTF-8 do giới hạn bcrypt. Không có tài khoản hoặc mật khẩu mặc định. Script không đổi role hay đặt lại mật khẩu nếu email đã tồn tại. Xóa `ADMIN_PASSWORD` khỏi `.env` sau khi seed. Admin đăng nhập rồi dùng `POST /api/v1/users` để tạo Teacher.
 
+## Admin quản lý mật khẩu
+
+- Tự đổi: `PATCH /api/v1/auth/me/password` với `currentPassword` và `newPassword`. Backend xác nhận mật khẩu cũ, băm mật khẩu mới và trả access token mới để giữ phiên hiện tại.
+- Đặt lại cho Student/Teacher: `PATCH /api/v1/users/:userId/password` với `newPassword`. Không được dùng API này cho bất kỳ Admin nào.
+- Mật khẩu mới phải khác mật khẩu cũ và tuân thủ giới hạn độ dài/byte. Không lưu hoặc trả mật khẩu dạng rõ. Hai API dùng chung giới hạn 20 request/15 phút/Admin.
+- Trường `User.tokenVersion` và claim JWT `ver` vô hiệu hóa mọi token cũ của tài khoản vừa đổi mật khẩu. Tài khoản hiện có thiếu trường này được xem là phiên bản 0; không cần sửa thủ công dữ liệu MongoDB. Mật khẩu reset không tự mở khóa tài khoản.
+
 ## Luồng thử chính
 
 1. Đăng ký Student: `POST /auth/register`.
@@ -65,7 +72,7 @@ Integration test cần `mongod` trên PATH. Nếu chưa có, đặt `$env:MONGOD
 
 ## Giới hạn của phiên bản khởi tạo
 
-- JWT access token có hạn, chưa có refresh token, quên mật khẩu hay xác minh email. Đăng xuất ở frontend bằng cách bỏ token; token chưa hết hạn vẫn dùng được nếu tài khoản còn hoạt động.
+- JWT access token có hạn, chưa có refresh token, tự khôi phục mật khẩu qua email hay xác minh email. Đổi/reset mật khẩu vô hiệu hóa token cũ. Đăng xuất thông thường ở frontend chỉ bỏ token, không thu hồi token phía server.
 - Upload dùng ổ đĩa cục bộ và buffer có giới hạn, phù hợp phát triển một instance. Triển khai nhiều instance cần object storage và cơ chế quét file.
 - Unique indexes chống ghi danh/bài nộp trùng; optimistic concurrency chống ghi đè đồng thời cùng document.
 - Các kiểm tra liên collection và xóa nhiều document chưa chạy trong transaction. Trước production cần bổ sung transaction/đồng bộ ghi trên replica set cho các thao tác như đổi trạng thái song song với ghi danh, thay thang điểm song song với chấm bài và xóa khóa học. Lỗi tiến trình giữa cập nhật DB và dọn file cũng cần job đối soát storage.

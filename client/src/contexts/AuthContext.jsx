@@ -36,7 +36,15 @@ export function AuthProvider({ children }) {
   const updateProfile = useCallback(async body => {
     const result = await authApi.updateProfile(body); setUser(result.data); return result.data;
   }, []);
-  const value = useMemo(() => ({ user, loading, login, logout, updateProfile, sessionError }), [user, loading, login, logout, updateProfile, sessionError]);
+  const changePassword = useCallback(async body => {
+    const currentGeneration = ++generation.current;
+    const result = await authApi.changePassword(body);
+    if (generation.current === currentGeneration) {
+      setAccessToken(result.data.accessToken); setUser(result.data.user); setSessionError('');
+    }
+    return result.data;
+  }, []);
+  const value = useMemo(() => ({ user, loading, login, logout, updateProfile, changePassword, sessionError }), [user, loading, login, logout, updateProfile, changePassword, sessionError]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 export function useAuth() {

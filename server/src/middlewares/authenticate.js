@@ -4,7 +4,7 @@ import { User } from '../models/User.js';
 import { AppError, assert } from '../utils/AppError.js';
 
 export function signToken(user) {
-  return jwt.sign({}, env.JWT_SECRET, {
+  return jwt.sign({ ver: user.tokenVersion ?? 0 }, env.JWT_SECRET, {
     subject: String(user._id), algorithm: 'HS256', expiresIn: env.JWT_EXPIRES_IN,
     issuer: 'online-classroom', audience: 'online-classroom-client',
   });
@@ -20,8 +20,10 @@ async function resolveUser(token) {
   } catch {
     throw new AppError(401, 'JWT không hợp lệ hoặc đã hết hạn.', 'INVALID_TOKEN');
   }
-  const user = await User.findById(payload.sub);
+  const user = await User.findById(payload.sub).select('+tokenVersion');
   assert(user, 401, 'Tài khoản không tồn tại.', 'INVALID_TOKEN');
+  // Existing accounts and tokens without a version remain valid until the first reset.
+  assert((payload.ver ?? 0) === (user.tokenVersion ?? 0), 401, 'Mật khẩu đã thay đổi. Vui lòng đăng nhập lại.', 'TOKEN_REVOKED');
   assert(user.isActive, 403, 'Tài khoản đã bị khóa.', 'ACCOUNT_DISABLED');
   return user;
 }

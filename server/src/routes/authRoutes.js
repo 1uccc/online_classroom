@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { authenticate } from '../middlewares/authenticate.js';
+import { authorizeRoles } from '../middlewares/authorizeRoles.js';
+import { passwordRateLimit } from '../middlewares/passwordRateLimit.js';
 import { validate } from '../middlewares/validateRequest.js';
 import * as schemas from '../validators/schemas.js';
 import * as controller from '../controllers/authController.js';
@@ -12,4 +14,5 @@ router.post('/register', limiter, validate(schemas.register), controller.registe
 router.post('/login', limiter, validate(schemas.login), controller.login);
 router.get('/me', authenticate, controller.me);
 router.patch('/me', authenticate, validate(schemas.profile), controller.updateMe);
+router.patch('/me/password', authenticate, authorizeRoles('admin'), passwordRateLimit, validate(schemas.changeOwnPassword), controller.changePassword);
 export default router;

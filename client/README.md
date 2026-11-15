@@ -23,7 +23,7 @@ Nếu backend dùng cổng khác, sao chép `.env.example` thành `.env`, sửa 
 | Khách | Khám phá/lọc/tìm kiếm khóa học, xem giới thiệu, đăng ký Student, đăng nhập |
 | Student | Tổng quan, lớp học đã ghi danh, ghi danh/hủy/ghi danh lại, xem/tải tài liệu, nộp và sửa bài chưa chấm, xem điểm/nhận xét |
 | Teacher | Tổng quan, CRUD khóa học, xuất bản/lưu trữ, CRUD tài liệu và bài tập, danh sách ghi danh, hoàn thành khóa học, xem bài nộp và chấm/sửa điểm |
-| Admin | Tổng quan, tìm/lọc người dùng, tạo Teacher/Student, khóa/mở khóa, CRUD và vô hiệu hóa danh mục |
+| Admin | Tổng quan, tìm/lọc người dùng, tạo Teacher/Student, khóa/mở khóa, đặt lại mật khẩu Teacher/Student, tự đổi mật khẩu, CRUD và vô hiệu hóa danh mục |
 | Đã đăng nhập | Xem hồ sơ, sửa họ tên, đăng xuất |
 
 Backend vẫn là nơi quyết định quyền. ProtectedRoute hỗ trợ điều hướng và tránh hiển thị giao diện sai vai trò. Tài khoản Admin được tạo bằng seed backend, không có thông tin đăng nhập mặc định.
@@ -43,7 +43,11 @@ src/
   utils/        # Trạng thái, định dạng giờ Việt Nam, kiểm tra file
 ```
 
-Phiên đăng nhập dùng JWT trong bộ nhớ và sessionStorage của tab. Khi tải lại, frontend gọi `/auth/me`. JWT hết hạn hoặc tài khoản bị khóa sẽ kết thúc phiên. Đăng xuất xóa token ở client; backend chưa có chức năng thu hồi JWT/refresh token. SessionStorage vẫn có thể bị đọc nếu có XSS; khi đưa lên production nên xem xét xác thực bằng cookie HttpOnly cùng các thay đổi backend tương ứng.
+Phiên đăng nhập dùng JWT trong bộ nhớ và sessionStorage của tab. Khi tải lại, frontend gọi `/auth/me`. JWT hết hạn, bị thu hồi do đổi mật khẩu hoặc tài khoản bị khóa sẽ kết thúc phiên. Backend chưa có refresh token; đăng xuất thông thường xóa token ở client. SessionStorage vẫn có thể bị đọc nếu có XSS; khi đưa lên production nên xem xét xác thực bằng cookie HttpOnly cùng các thay đổi backend tương ứng.
+
+Admin tự đổi mật khẩu tại **Hồ sơ cá nhân → Đổi mật khẩu của tôi**, nhập mật khẩu hiện tại và xác nhận mật khẩu mới. Frontend nhận access token mới để tiếp tục phiên, còn các phiên cũ hết hiệu lực. Tại **Quản lý người dùng**, nút **Đặt lại mật khẩu** chỉ hiện với Teacher/Student; yêu cầu nhập mật khẩu mới và xác nhận. Người được đặt lại phải đăng nhập lại, trạng thái khóa không thay đổi. Mật khẩu không được tự động gửi qua email hoặc lưu trong sessionStorage.
+
+Font Noto Sans Variable được đóng gói cục bộ qua Fontsource, có subset tiếng Việt. Banner dùng font này với khoảng cách chữ bình thường để tránh lỗi hiển thị dấu của font serif phụ thuộc máy người dùng. Khi cập nhật dependency mới chạy `npm ci`, khởi động lại Vite và tải lại trang nếu trình duyệt còn giữ font cũ.
 
 File tải xuống luôn đi qua API có Bearer token. Không đưa JWT vào URL. Bài đọc và bài làm được render như văn bản, không dùng `dangerouslySetInnerHTML`. Liên kết video được backend kiểm tra HTTP/HTTPS và mở với `noopener noreferrer`.
 

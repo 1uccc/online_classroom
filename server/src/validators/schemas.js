@@ -11,6 +11,9 @@ export const login = z.object({ email, password: z.string().min(1).max(128) }).s
 export const createUser = register.extend({ role: z.enum(['teacher', 'student']) });
 export const profile = z.object({ fullName: text(120) }).strict();
 export const userStatus = z.object({ isActive: z.boolean() }).strict();
+const newPassword = password.refine(value => Buffer.byteLength(value, 'utf8') <= 72, 'Mật khẩu không được vượt 72 byte UTF-8.');
+export const changeOwnPassword = z.object({ currentPassword: z.string().min(1).max(128), newPassword }).strict();
+export const resetUserPassword = z.object({ newPassword }).strict();
 export const category = z.object({
   name: text(100), slug: text(120).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
   description: z.string().trim().max(2000).default(''), isActive: z.boolean().default(true),

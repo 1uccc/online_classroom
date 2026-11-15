@@ -1,5 +1,5 @@
 import { User } from '../models/User.js';
-import { register } from '../services/authService.js';
+import { register, resetUserPassword } from '../services/authService.js';
 import { sameId } from '../services/accessService.js';
 import { success, list, escapeRegex } from '../utils/response.js';
 import { assert } from '../utils/AppError.js';
@@ -27,4 +27,7 @@ export async function updateStatus(req, res) {
   user.isActive = req.validated.body.isActive;
   await user.save();
   return success(res, user);
+}
+export async function resetPassword(req, res) {
+  return success(res, await resetUserPassword(req.user, req.params.userId, req.validated.body), 200, 'Đã đặt lại mật khẩu và kết thúc các phiên đăng nhập cũ.');
 }

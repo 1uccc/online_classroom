@@ -313,4 +313,83 @@ test('Backend lifecycle, authorization and private uploads', async t => {
     assert.deepEqual(responses.map(r => r.status).sort(), [201, 409]);
     assert.equal(await models.Enrollment.countDocuments({ course: draft._id }), 1);
   });
+
+  await t.test('password endpoints reject guests and non-admin roles', async () => {
+    const target = await models.User.findOne({ email: 'student@example.com' });
+    const body = { newPassword: 'NewPasswordForTest123!' };
+    await request(app).patch(`${api}/users/${target.id}/password`).send(body).expect(401);
+    for (const token of [student, teacher]) {
+      await request(app).patch(`${api}/users/${target.id}/password`).set(auth(token)).send(body).expect(403);
+      await request(app).patch(`${api}/auth/me/password`).set(auth(token)).send({ ...body, currentPassword: password }).expect(403);
+    }
+  });
+
+  await t.test('admin validates current and new passwords without invalidating the current session', async () => {
+    const url = `${api}/auth/me/password`;
+    const wrong = await request(app).patch(url).set(auth(admin)).send({ currentPassword: 'WrongPassword123!', newPassword: 'NewAdminPassword123!' }).expect(400);
+    assert.equal(wrong.body.code, 'INVALID_CURRENT_PASSWORD');
+    await request(app).get(`${api}/auth/me`).set(auth(admin)).expect(200);
+    await request(app).patch(url).set(auth(admin)).send({ currentPassword: password, newPassword: 'short' }).expect(400);
+    await request(app).patch(url).set(auth(admin)).send({ currentPassword: password, newPassword: 'á'.repeat(37) }).expect(400);
+    await request(app).patch(url).set(auth(admin)).send({ currentPassword: password, newPassword: password }).expect(400);
+    await request(app).patch(url).set(auth(admin)).send({ currentPassword: password, newPassword: 'NewAdminPassword123!', role: 'teacher' }).expect(400);
+  });
+
+  await t.test('admin changes own password, receives a fresh token and revokes previous and legacy tokens', async () => {
+    const account = await models.User.findOne({ email: 'admin@example.com' });
+    // Simulate an account created before tokenVersion was added.
+    await models.User.collection.updateOne({ _id: account._id }, { $unset: { tokenVersion: '' } });
+    const jwt = (await import('jsonwebtoken')).default;
+    const legacy = jwt.sign({}, process.env.JWT_SECRET, { subject: account.id, expiresIn: '1h', issuer: 'online-classroom', audience: 'online-classroom-client' });
+    await request(app).get(`${api}/auth/me`).set(auth(legacy)).expect(200);
+    const oldToken = admin;
+    const changed = json(await request(app).patch(`${api}/auth/me/password`).set(auth(admin)).send({ currentPassword: password, newPassword: 'NewAdminPassword123!' }).expect(200));
+    assert.equal(changed.user.passwordHash, undefined);
+    assert.equal(changed.user.tokenVersion, undefined);
+    admin = changed.accessToken;
+    await request(app).get(`${api}/auth/me`).set(auth(oldToken)).expect(401);
+    await request(app).get(`${api}/auth/me`).set(auth(legacy)).expect(401);
+    await request(app).get(`${api}/auth/me`).set(auth(admin)).expect(200);
+    await request(app).post(`${api}/auth/login`).send({ email: account.email, password }).expect(401);
+    const loggedIn = json(await request(app).post(`${api}/auth/login`).send({ email: account.email, password: 'NewAdminPassword123!' }).expect(200));
+    await request(app).get(`${api}/auth/me`).set(auth(loggedIn.accessToken)).expect(200);
+    const stored = await models.User.findById(account._id).select('+passwordHash +tokenVersion');
+    assert.equal(stored.tokenVersion, 1);
+    assert.notEqual(stored.passwordHash, 'NewAdminPassword123!');
+    assert(await (await import('bcryptjs')).default.compare('NewAdminPassword123!', stored.passwordHash));
+  });
+
+  await t.test('admin cannot bypass self-verification or reset another administrator', async () => {
+    const account = await models.User.findOne({ email: 'admin@example.com' }).select('+passwordHash');
+    const other = await models.User.create({ fullName: 'Other Admin', email: 'otheradmin@example.com', role: 'admin', passwordHash: account.passwordHash });
+    for (const id of [account.id, other.id]) await request(app).patch(`${api}/users/${id}/password`).set(auth(admin)).send({ newPassword: 'AnotherNewPassword123!' }).expect(403);
+    await request(app).patch(`${api}/users/not-an-id/password`).set(auth(admin)).send({ newPassword: 'AnotherNewPassword123!' }).expect(400);
+    await request(app).patch(`${api}/users/${new mongoose.Types.ObjectId()}/password`).set(auth(admin)).send({ newPassword: 'AnotherNewPassword123!' }).expect(404);
+  });
+
+  await t.test('admin resets student and teacher passwords and revokes only their sessions', async () => {
+    for (const [email, oldToken, newPassword] of [
+      ['student@example.com', student, 'StudentPasswordReset123!'],
+      ['teacher@example.com', teacher, 'TeacherPasswordReset123!'],
+    ]) {
+      const account = await models.User.findOne({ email });
+      const changed = json(await request(app).patch(`${api}/users/${account.id}/password`).set(auth(admin)).send({ newPassword }).expect(200));
+      assert.equal(changed.role, account.role); assert.equal(changed.isActive, account.isActive);
+      assert.equal(changed.passwordHash, undefined); assert.equal(changed.tokenVersion, undefined);
+      await request(app).get(`${api}/auth/me`).set(auth(oldToken)).expect(401);
+      await request(app).post(`${api}/auth/login`).send({ email, password }).expect(401);
+      const fresh = json(await request(app).post(`${api}/auth/login`).send({ email, password: newPassword }).expect(200));
+      await request(app).get(`${api}/auth/me`).set(auth(fresh.accessToken)).expect(200);
+      await request(app).get(`${api}/auth/me`).set(auth(admin)).expect(200);
+    }
+    await request(app).get(`${api}/auth/me`).set(auth(student2)).expect(200);
+  });
+
+  await t.test('resetting a locked account preserves the lock', async () => {
+    const account = await models.User.findOne({ email: 'outsider@example.com' });
+    await request(app).patch(`${api}/users/${account.id}/status`).set(auth(admin)).send({ isActive: false }).expect(200);
+    const changed = json(await request(app).patch(`${api}/users/${account.id}/password`).set(auth(admin)).send({ newPassword: 'LockedStudentReset123!' }).expect(200));
+    assert.equal(changed.isActive, false);
+    await request(app).get(`${api}/auth/me`).set(auth(outsider)).expect(401);
+  });
 });

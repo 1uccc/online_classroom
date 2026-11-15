@@ -13,3 +13,6 @@ export async function updateMe(req, res) {
   await req.user.save();
   return success(res, req.user);
 }
+export async function changePassword(req, res) {
+  return success(res, await authService.changeOwnPassword(req.user, req.validated.body), 200, 'Đã đổi mật khẩu và kết thúc các phiên đăng nhập cũ.');
+}
