@@ -11,6 +11,7 @@ router.use(authenticate, authorizeRoles('admin'));
 router.get('/', validate(schemas.userQuery, 'query'), controller.getUsers);
 router.post('/', validate(schemas.createUser), controller.createUser);
 router.get('/:userId', validateIds, controller.getUser);
+router.patch('/:userId', validateIds, validate(schemas.adminUserProfile), controller.updateProfile);
 router.patch('/:userId/status', validateIds, validate(schemas.userStatus), controller.updateStatus);
 router.patch('/:userId/password', validateIds, passwordRateLimit, validate(schemas.resetUserPassword), controller.resetPassword);
 export default router;

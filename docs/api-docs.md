@@ -1,8 +1,14 @@
-# Online Classroom API — Bước 2 / Backend Bước 3
+# Tài liệu REST API — Online Classroom
+
+[README dự án](../README.md) · [Kiến trúc](architecture.md) · [Database](database-design.md) · [Hướng dẫn sử dụng](user-guide.md)
 
 Base URL cục bộ: `http://localhost:5000/api/v1`.
 
 Các API được bảo vệ nhận `Authorization: Bearer <access_token>`. Mỗi request kiểm tra tài khoản trong MongoDB, role và quyền trên tài nguyên. Admin không mặc nhiên được sửa khóa học hay chấm bài của Teacher.
+
+## Health endpoint
+
+`GET http://127.0.0.1:5000/health` là public, nằm ngoài tiền tố `/api/v1`, trả `{ "success": true, "data": { "status": "ok" } }` khi tiến trình HTTP đang phục vụ. Endpoint không truy vấn lại database ở mỗi request.
 
 ## Danh sách endpoints
 
@@ -31,10 +37,13 @@ Admin tự đổi mật khẩu: `{ "currentPassword": "<mật khẩu hiện tạ
 | GET | `/users` | Admin | Lọc người dùng theo role, isActive, search |
 | POST | `/users` | Admin | Tạo Teacher/Student |
 | GET | `/users/:userId` | Admin | Xem người dùng |
+| PATCH | `/users/:userId` | Admin | Chỉnh sửa họ tên/email của Sinh viên/Giảng viên |
 | PATCH | `/users/:userId/status` | Admin | Khóa/mở khóa |
 | PATCH | `/users/:userId/password` | Admin | Đặt lại mật khẩu Sinh viên/Giảng viên |
 
 Tạo người dùng dùng payload Register thêm `role: "teacher"` hoặc `"student"`. Khóa: `{ "isActive": false }`. Không cho tự khóa tài khoản. Admin đầu tiên được tạo bằng `npm run seed:admin`.
+
+Sửa hồ sơ: `{ "fullName": "Nguyễn Văn An", "email": "an@example.com" }`, chấp nhận một hoặc cả hai trường và yêu cầu ít nhất một trường. Họ tên được trim; email được trim và chuẩn hóa lowercase, là email đăng nhập mới. Chỉ cập nhật tài khoản student/teacher; hồ sơ Admin của mình dùng `/auth/me`. Không nhận role, isActive, passwordHash hoặc tokenVersion qua API hồ sơ. Email trùng trả 409 với code `EMAIL_ALREADY_EXISTS`; cập nhật thất bại không lưu một phần dữ liệu. Hồ sơ trả về không chứa hash mật khẩu hoặc phiên bản token. Thay họ tên/email không đổi `_id`, mật khẩu, trạng thái khóa hay dữ liệu học tập.
 
 Đặt lại mật khẩu: `{ "newPassword": "<mật khẩu mới>" }`. Chỉ chấp nhận tài khoản role student/teacher; không cho dùng route này để đổi mật khẩu của mình hoặc Admin khác. Tất cả phiên cũ của người được đặt lại mật khẩu sẽ hết hiệu lực; người đó đăng nhập bằng mật khẩu mới. Không thay role, trạng thái khóa, hoặc dữ liệu học tập. Response chỉ trả thông tin người dùng, không trả mật khẩu, hash hay token của người đó. Hai API mật khẩu dùng chung giới hạn 20 request/15 phút cho mỗi Admin.
 
@@ -148,7 +157,7 @@ Lỗi: `{ "success": false, "message": "...", "code": "..." }`, có thể thêm 
 | Status | Ý nghĩa |
 | --- | --- |
 | 400 | Input/JSON/ObjectId không hợp lệ, điểm vượt thang |
-| 401 | Chưa đăng nhập, JWT sai/hết hạn, sai thông tin đăng nhập |
+| 401 | Chưa đăng nhập, JWT sai/hết hạn/đã bị thu hồi, sai thông tin đăng nhập |
 | 403 | Sai role/quyền sở hữu, tài khoản bị khóa, không đủ quyền ghi danh |
 | 404 | Không có tài nguyên hoặc tài nguyên không hiển thị với người gọi |
 | 409 | Trùng dữ liệu, trạng thái xung đột, quá hạn, dữ liệu đang được tham chiếu |
@@ -165,4 +174,4 @@ Giới hạn mặc định: 300 request/phút/IP cho `/api`; đăng nhập và �
 - [Mongoose validation](https://mongoosejs.com/docs/validation) — unique index được xử lý riêng với validation.
 - [Multer middleware](https://expressjs.com/en/resources/middleware/multer/) — upload chỉ gắn trên các route được phép.
 
-Các giới hạn triển khai hiện tại được ghi trong `server/README.md`, đặc biệt transaction liên collection và storage cục bộ.
+Các giới hạn triển khai hiện tại được ghi trong [Backend README](../server/README.md), đặc biệt transaction liên collection và storage cục bộ.

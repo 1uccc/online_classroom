@@ -1,6 +1,8 @@
-# Online Classroom — Backend (Bước 3)
+# Online Classroom — Backend
 
-Backend Express, MongoDB/Mongoose và JWT. Phạm vi hiện tại gồm 7 models, toàn bộ nhóm API của Bước 2, phân quyền, upload riêng tư và kiểm thử tích hợp. Frontend được thực hiện ở Bước 4; README toàn dự án ở Bước 5.
+Backend Express, MongoDB/Mongoose và JWT với 7 models, phân quyền, quản lý người dùng/khóa học, upload riêng tư và kiểm thử tích hợp.
+
+[README toàn dự án](../README.md) · [Kiến trúc](../docs/architecture.md) · [Database](../docs/database-design.md) · [API](../docs/api-docs.md) · [Hướng dẫn sử dụng](../docs/user-guide.md)
 
 ## Chạy cục bộ
 
@@ -9,7 +11,9 @@ Yêu cầu Node.js >= 22.19 và MongoDB đang chạy (MongoDB local hoặc Atlas
 ```powershell
 cd server
 npm ci
-Copy-Item .env.example .env
+if (-not (Test-Path -LiteralPath '.env')) {
+    Copy-Item -LiteralPath '.env.example' -Destination '.env'
+}
 node -e "console.log(require('node:crypto').randomBytes(48).toString('hex'))"
 ```
 
@@ -33,7 +37,9 @@ npm run seed:admin
 
 Mật khẩu tối thiểu 12 ký tự, tối đa 72 byte UTF-8 do giới hạn bcrypt. Không có tài khoản hoặc mật khẩu mặc định. Script không đổi role hay đặt lại mật khẩu nếu email đã tồn tại. Xóa `ADMIN_PASSWORD` khỏi `.env` sau khi seed. Admin đăng nhập rồi dùng `POST /api/v1/users` để tạo Teacher.
 
-## Admin quản lý mật khẩu
+## Admin quản lý hồ sơ và mật khẩu
+
+Admin chỉnh sửa họ tên/email của Sinh viên và Giảng viên bằng `PATCH /api/v1/users/:userId`. Chỉ nhận `fullName`/`email`, hỗ trợ cập nhật một phần; email được chuẩn hóa và kiểm tra duy nhất bằng index MongoDB. Email mới dùng để đăng nhập. Các trường role, mật khẩu và trạng thái khóa được xử lý bằng chức năng riêng, không được gửi trong API hồ sơ.
 
 - Tự đổi: `PATCH /api/v1/auth/me/password` với `currentPassword` và `newPassword`. Backend xác nhận mật khẩu cũ, băm mật khẩu mới và trả access token mới để giữ phiên hiện tại.
 - Đặt lại cho Student/Teacher: `PATCH /api/v1/users/:userId/password` với `newPassword`. Không được dùng API này cho bất kỳ Admin nào.

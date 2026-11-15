@@ -1,12 +1,31 @@
+# Dependencies (keep package-lock.json in Git)
 node_modules/
+
+# Local configuration and credentials
 .env
 .env.*
 !.env.example
+
+# Generated frontend output and test reports
 dist/
 build/
 coverage/
+.vite/
+*.tsbuildinfo
+
+# Runtime logs and process files
 *.log
+*.pid
+*.pid.lock
+
+# Private uploads and local MongoDB data/backups
 server/uploads/*
 !server/uploads/.gitkeep
+data/db/
+mongodb-data/
+mongo-data/
+dump/
+
+# Operating system files
 .DS_Store
 Thumbs.db

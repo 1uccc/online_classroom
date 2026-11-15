@@ -1,6 +1,7 @@
 import { request } from './httpClient';
 export const adminApi = {
   createUser: body => request('/users', { method: 'POST', body }),
+  updateUser: (id, body) => request(`/users/${id}`, { method: 'PATCH', body }),
   userStatus: (id, isActive) => request(`/users/${id}/status`, { method: 'PATCH', body: { isActive } }),
   resetPassword: (id, newPassword) => request(`/users/${id}/password`, { method: 'PATCH', body: { newPassword } }),
   createCategory: body => request('/categories', { method: 'POST', body }),

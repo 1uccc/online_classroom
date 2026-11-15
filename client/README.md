@@ -1,6 +1,8 @@
-# Online Classroom — Frontend (Bước 4)
+# Online Classroom — Frontend
 
 React Functional Components, Hooks, React Context, React Router, Tailwind CSS và Vite. Giao diện tiếng Việt, hỗ trợ desktop/mobile, kết nối với backend thật trong `../server`.
+
+[README toàn dự án](../README.md) · [Kiến trúc](../docs/architecture.md) · [Hướng dẫn sử dụng](../docs/user-guide.md) · [API](../docs/api-docs.md)
 
 ## Chạy cục bộ
 
@@ -23,7 +25,7 @@ Nếu backend dùng cổng khác, sao chép `.env.example` thành `.env`, sửa 
 | Khách | Khám phá/lọc/tìm kiếm khóa học, xem giới thiệu, đăng ký Student, đăng nhập |
 | Student | Tổng quan, lớp học đã ghi danh, ghi danh/hủy/ghi danh lại, xem/tải tài liệu, nộp và sửa bài chưa chấm, xem điểm/nhận xét |
 | Teacher | Tổng quan, CRUD khóa học, xuất bản/lưu trữ, CRUD tài liệu và bài tập, danh sách ghi danh, hoàn thành khóa học, xem bài nộp và chấm/sửa điểm |
-| Admin | Tổng quan, tìm/lọc người dùng, tạo Teacher/Student, khóa/mở khóa, đặt lại mật khẩu Teacher/Student, tự đổi mật khẩu, CRUD và vô hiệu hóa danh mục |
+| Admin | Tổng quan, tìm/lọc người dùng, tạo và sửa hồ sơ Teacher/Student, khóa/mở khóa, đặt lại mật khẩu Teacher/Student, tự đổi mật khẩu, CRUD và vô hiệu hóa danh mục |
 | Đã đăng nhập | Xem hồ sơ, sửa họ tên, đăng xuất |
 
 Backend vẫn là nơi quyết định quyền. ProtectedRoute hỗ trợ điều hướng và tránh hiển thị giao diện sai vai trò. Tài khoản Admin được tạo bằng seed backend, không có thông tin đăng nhập mặc định.
@@ -46,6 +48,8 @@ src/
 Phiên đăng nhập dùng JWT trong bộ nhớ và sessionStorage của tab. Khi tải lại, frontend gọi `/auth/me`. JWT hết hạn, bị thu hồi do đổi mật khẩu hoặc tài khoản bị khóa sẽ kết thúc phiên. Backend chưa có refresh token; đăng xuất thông thường xóa token ở client. SessionStorage vẫn có thể bị đọc nếu có XSS; khi đưa lên production nên xem xét xác thực bằng cookie HttpOnly cùng các thay đổi backend tương ứng.
 
 Admin tự đổi mật khẩu tại **Hồ sơ cá nhân → Đổi mật khẩu của tôi**, nhập mật khẩu hiện tại và xác nhận mật khẩu mới. Frontend nhận access token mới để tiếp tục phiên, còn các phiên cũ hết hiệu lực. Tại **Quản lý người dùng**, nút **Đặt lại mật khẩu** chỉ hiện với Teacher/Student; yêu cầu nhập mật khẩu mới và xác nhận. Người được đặt lại phải đăng nhập lại, trạng thái khóa không thay đổi. Mật khẩu không được tự động gửi qua email hoặc lưu trong sessionStorage.
+
+Trong **Quản lý người dùng → Sửa hồ sơ**, Admin có thể thay họ tên và email của Teacher/Student. Form cũng hiển thị vai trò, trạng thái khóa và ngày tạo để đối chiếu. Email sửa xong dùng để đăng nhập; nếu trùng tài khoản khác, form giữ nội dung đã nhập và hiển thị lỗi. Vai trò/trạng thái trong form chỉ để xem; khóa tài khoản và đặt lại mật khẩu dùng các nút riêng.
 
 Font Noto Sans Variable được đóng gói cục bộ qua Fontsource, có subset tiếng Việt. Banner dùng font này với khoảng cách chữ bình thường để tránh lỗi hiển thị dấu của font serif phụ thuộc máy người dùng. Khi cập nhật dependency mới chạy `npm ci`, khởi động lại Vite và tải lại trang nếu trình duyệt còn giữ font cũ.
 
@@ -83,4 +87,4 @@ Chỉ database QA này có các tài khoản `student@qa.classroom.test`, `teach
 - [Tailwind CSS với Vite](https://tailwindcss.com/docs/installation/using-vite)
 - [React Router declarative routing](https://reactrouter.com/start/declarative/routing)
 
-Tài liệu README và hướng dẫn tổng thể của toàn dự án sẽ được hoàn thiện ở Bước 5.
+Hướng dẫn cài đặt cả hai thành phần, biến môi trường, Git và xử lý lỗi được tổng hợp trong [README toàn dự án](../README.md).

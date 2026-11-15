@@ -1,5 +1,6 @@
 import { User } from '../models/User.js';
 import { register, resetUserPassword } from '../services/authService.js';
+import { updateUserProfile } from '../services/userService.js';
 import { sameId } from '../services/accessService.js';
 import { success, list, escapeRegex } from '../utils/response.js';
 import { assert } from '../utils/AppError.js';
@@ -19,6 +20,9 @@ export async function getUser(req, res) {
   const user = await User.findById(req.params.userId);
   assert(user, 404, 'Không tìm thấy người dùng.', 'NOT_FOUND');
   return success(res, user);
+}
+export async function updateProfile(req, res) {
+  return success(res, await updateUserProfile(req.user, req.params.userId, req.validated.body), 200, 'Đã cập nhật hồ sơ người dùng.');
 }
 export async function updateStatus(req, res) {
   assert(!sameId(req.user._id, req.params.userId) || req.validated.body.isActive, 409, 'Không thể tự khóa tài khoản.', 'SELF_LOCK');

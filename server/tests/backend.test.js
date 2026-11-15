@@ -314,6 +314,60 @@ test('Backend lifecycle, authorization and private uploads', async t => {
     assert.equal(await models.Enrollment.countDocuments({ course: draft._id }), 1);
   });
 
+  await t.test('profile editing requires admin and only accepts student or teacher targets', async () => {
+    const target = await models.User.findOne({ email: 'student@example.com' });
+    await request(app).patch(`${api}/users/${target.id}`).send({ fullName: 'Unauthorized' }).expect(401);
+    for (const token of [student, teacher]) await request(app).patch(`${api}/users/${target.id}`).set(auth(token)).send({ fullName: 'Unauthorized' }).expect(403);
+    const administrator = await models.User.findOne({ role: 'admin' });
+    await request(app).patch(`${api}/users/${administrator.id}`).set(auth(admin)).send({ fullName: 'Other admin edit' }).expect(403);
+    await request(app).patch(`${api}/users/not-an-id`).set(auth(admin)).send({ fullName: 'Missing' }).expect(400);
+    await request(app).patch(`${api}/users/${new mongoose.Types.ObjectId()}`).set(auth(admin)).send({ fullName: 'Missing' }).expect(404);
+  });
+
+  await t.test('admin edits both student and teacher profiles while preserving credentials and references', async () => {
+    for (const [email, token] of [['student@example.com', student], ['teacher@example.com', teacher]]) {
+      const original = await models.User.findOne({ email }).select('+passwordHash +tokenVersion').lean();
+      const newEmail = `updated-${original.role}@example.com`;
+      const changed = json(await request(app).patch(`${api}/users/${original._id}`).set(auth(admin)).send({ fullName: '  Nguyễn Văn Cập Nhật  ', email: `  ${newEmail.toUpperCase()}  ` }).expect(200));
+      assert.equal(changed._id, String(original._id));
+      assert.equal(changed.fullName, 'Nguyễn Văn Cập Nhật'); assert.equal(changed.email, newEmail);
+      assert.equal(changed.role, original.role); assert.equal(changed.isActive, original.isActive);
+      assert.equal(changed.passwordHash, undefined); assert.equal(changed.tokenVersion, undefined);
+      const stored = await models.User.findById(original._id).select('+passwordHash +tokenVersion').lean();
+      assert.equal(stored.passwordHash, original.passwordHash); assert.equal(stored.tokenVersion, original.tokenVersion);
+      const me = json(await request(app).get(`${api}/auth/me`).set(auth(token)).expect(200));
+      assert.equal(me.fullName, changed.fullName); assert.equal(me.email, changed.email);
+      const searched = json(await request(app).get(`${api}/users?search=${newEmail}`).set(auth(admin)).expect(200));
+      assert(searched.some(user => user._id === changed._id));
+      if (original.role === 'student') {
+        const loggedIn = json(await request(app).post(`${api}/auth/login`).send({ email: newEmail, password }).expect(200));
+        assert.equal(loggedIn.user._id, changed._id);
+      }
+      // Keep the fixture identity stable for the remaining password lifecycle tests.
+      await request(app).patch(`${api}/users/${original._id}`).set(auth(admin)).send({ fullName: original.fullName, email: original.email }).expect(200);
+    }
+  });
+
+  await t.test('profile updates reject duplicate email atomically and validate allowed fields', async () => {
+    const target = await models.User.findOne({ email: 'student2@example.com' });
+    const originalName = target.fullName;
+    const duplicate = await request(app).patch(`${api}/users/${target.id}`).set(auth(admin)).send({ fullName: 'Should not be saved', email: 'TEACHER@example.com' }).expect(409);
+    assert.equal(duplicate.body.code, 'EMAIL_ALREADY_EXISTS');
+    const unchanged = await models.User.findById(target._id);
+    assert.equal(unchanged.fullName, originalName); assert.equal(unchanged.email, target.email);
+    for (const body of [{}, { email: 'not-an-email' }, { fullName: '   ' }, { fullName: 'Injected', role: 'admin', passwordHash: 'injected', tokenVersion: 0, isActive: false }]) {
+      await request(app).patch(`${api}/users/${target.id}`).set(auth(admin)).send(body).expect(400);
+    }
+    const partial = json(await request(app).patch(`${api}/users/${target.id}`).set(auth(admin)).send({ fullName: 'Tên mới của sinh viên' }).expect(200));
+    assert.equal(partial.email, target.email); assert.equal(partial.role, 'student');
+    await request(app).patch(`${api}/users/${target.id}`).set(auth(admin)).send({ email: target.email.toUpperCase() }).expect(200);
+    const locked = await models.User.findOne({ email: 'outsider@example.com' });
+    await request(app).patch(`${api}/users/${locked.id}/status`).set(auth(admin)).send({ isActive: false }).expect(200);
+    const edited = json(await request(app).patch(`${api}/users/${locked.id}`).set(auth(admin)).send({ fullName: 'Sinh viên đang khóa' }).expect(200));
+    assert.equal(edited.isActive, false);
+    await request(app).patch(`${api}/users/${locked.id}/status`).set(auth(admin)).send({ isActive: true }).expect(200);
+  });
+
   await t.test('password endpoints reject guests and non-admin roles', async () => {
     const target = await models.User.findOne({ email: 'student@example.com' });
     const body = { newPassword: 'NewPasswordForTest123!' };
